@@ -1,0 +1,318 @@
+@font-face 
+{
+  font-family: 'Bornomala';
+  src: url('./assets/fonts/Bornomala.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face 
+{
+  font-family: 'Lipishree';
+  src: url('./assets/fonts/Lipishree.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face 
+{
+  font-family: 'Raem Kufi';
+  src: url('./assets/fonts/Raem Kufi.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face
+{
+  font-family: 'Bismillah';
+  src: url('./assets/fonts/Bismillah.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face 
+{
+  font-family: 'Georgia';
+  src: url('./assets/fonts/Georgia.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme 
+{
+  --height-button: 3rem;
+  --width-button: 3rem;
+  --width-partial: clamp(680px, 50vw, 720px);
+  --color-light: gray-500;
+  --color-dark: gray-300;
+  --font-bengali: "Bornomala", "system-ui", "-apple-system";
+  --font-ui: "Lipishree", "system-ui", "-apple-system";
+  --font-arabic: "Raem Kufi", "system-ui", "-apple-system";
+  --font-ar: "Bismillah", "system-ui", "-apple-system";
+  --font-english: "Georgia", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif";
+}
+
+@layer base 
+{
+  :root {
+    forced-color-adjust: none;
+    color-scheme: light dark;
+  }
+  html
+  {
+    @apply flex flex-col items-center cursor-none;
+    @apply bg-white dark:bg-black text-black dark:text-white scroll-smooth;
+  }
+  body 
+  {
+    @apply p-16 w-partial h-screen;
+    @apply bg-white dark:bg-black;
+  }
+  input
+  {
+    @apply border-2 border-light dark:border-dark rounded-4xl outline-0 h-button font-bengali text-center cursor-none;
+    @apply bg-white dark:bg-black text-black dark:text-white;
+    padding: 0 !important;
+  }
+  button
+  {
+    @apply box-border;
+    @apply flex justify-center items-center m-0.5 rounded-4xl w-button h-button transition-colors cursor-none;
+    @apply bg-black dark:bg-white text-white dark:text-black;
+    @apply hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white
+    hover:border-light dark:hover:border-dark hover:shadow-lg dark:hover:shadow-white/20;
+  }
+  .dark button 
+  {
+    @apply scale-y-95;
+  }
+  h1
+  {
+    @apply text-5xl;
+  }
+  select
+  {
+    @apply cursor-none;
+  }
+  form
+  {
+    @apply w-full;
+  }
+  input
+  {
+    all:unset;
+    @apply m-1 mr-0 mb-3 ml-0 border-black dark:border-white border-b font-bengali;
+  }
+  div 
+  {
+    @apply m-0 p-0 font-bengali;
+  }
+  textarea
+  {
+    @apply m-1 mr-0 mb-3 ml-0 border-black dark:border-white border-b outline-none font-bengali resize-none cursor-none;
+  }
+}
+
+@layer components
+{
+  .menu 
+  {
+    @apply right-0 bottom-0 z-50 fixed flex flex-col items-center bg-black dark:bg-white py-4 rounded-tl-4xl w-12 select-none;
+  }
+  .btn 
+  {
+    @apply relative flex justify-center items-center mt-0.5 pt-[0.05rem] pb-[0.05rem] rounded-4xl w-9 h-9 text-white dark:text-black mbe-0.5;
+  }
+  .menu .btn:hover 
+  {
+    @apply bg-black dark:bg-white text-white dark:text-black;
+    @apply shadow-none border-transparent;
+  }
+  .box 
+  {
+    @apply top-0 right-0 z-60 absolute flex items-center gap-7 bg-black dark:bg-white shadow-light dark:shadow-dark pr-2 pl-6 rounded-4xl rounded-l-full h-[2.35rem] text-white dark:text-black whitespace-nowrap;
+  }
+  .clicked 
+  {
+    @apply bg-white dark:bg-black rounded-4xl text-black dark:text-white;
+  }
+  .menu .btn.clicked:hover 
+  {
+    @apply bg-white dark:bg-black text-black dark:text-white;
+  }
+  .box-clicked-and-hovered 
+  {
+    @apply absolute bg-white dark:bg-black rounded-4xl text-black dark:text-white;
+  }
+
+  .letter-page
+  {
+    @apply flex flex-col justify-between items-center outline-2 w-[210mm] h-[297mm];
+  }
+  .flag
+  {
+    @apply w-20 h-10;
+  }
+}
+
+
+@media screen and (max-width: 768px)
+{
+  body
+  {
+    @apply pr-8 pl-8 w-screen;
+  }
+  h1
+  {
+    @apply text-3xl;
+  }
+  form {
+    @apply m-0 p-0
+  }
+}
+
+@media print
+{
+  html 
+  {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body 
+  {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  form 
+  {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .letter-page
+  {
+    @apply outline-0 w-[210mm] h-[297mm] scale-110;
+  }
+  .page-break 
+  {
+    break-before: page;
+    page-break-before: always;
+  }
+  form > :not(.print-area) 
+  {
+    display: none;
+  }
+  * 
+  {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-area 
+  {
+    @apply left-0 m-0 p-0 w-[210mm] h-[297mm] scale-100 origin-top-left;
+  }
+}
+
+@page 
+{
+  size: A4;
+  margin: 0;
+}
+
+.separator 
+{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  margin: 10px 0;
+  font-family: var(--font-bengali);
+  font-size: 1.5rem;
+}
+
+.separator::after 
+{
+  content: "";
+  width: 100%;
+  border-bottom: 1px solid #ccc;
+}
+
+.separator::before 
+{
+  display: none;
+}
+
+html 
+{
+  scrollbar-gutter: stable;
+}
+
+
+::-webkit-scrollbar 
+{
+  width: 0px; 
+}
+
+::-webkit-scrollbar-track 
+{
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb 
+{
+  background: transparent; 
+}
+
+.react-datepicker,
+.react-datepicker *,
+.react-datepicker__input-container input 
+{
+    cursor: none !important;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #999;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 90%;
+  justify-self: center;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid #888;
+  padding: 6px;
+}
+
+.ProseMirror th {
+  font-weight: bold;
+}
+
+.ProseMirror img[alt]:not([alt=""]) {
+  margin-bottom: 0.25rem;
+}
+
+.ProseMirror img[alt]:not([alt=""])::after {
+  content: attr(alt);
+  display: block;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
