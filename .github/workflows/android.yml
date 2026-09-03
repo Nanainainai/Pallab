@@ -1,0 +1,31 @@
+
+name: Build Android
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: |
+          rustup target add \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            x86_64-linux-android \
+            i686-linux-android
+
+      - run: npm install
+
+      - run: npx tauri android build

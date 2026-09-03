@@ -1,0 +1,57 @@
+name: Build Tauri Apps
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            use_container: false
+          - os: ubuntu-22.04
+            use_container: true
+            container: archlinux:base-devel
+
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.use_container && matrix.container || null }}
+
+    steps:
+      - name: Install Arch dependencies & Node.js
+        if: matrix.use_container
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm \
+            git \
+            curl \
+            wget \
+            nodejs \
+            npm \
+            webkit2gtk-4.1 \
+            gtk3 \
+            libappindicator-gtk3 \
+            librsvg \
+            openssl
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        if: "!matrix.use_container"
+        with:
+          node-version: 22
+
+      - run: npm install
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Rep.ort ${{ github.ref_name }}"
+          releaseDraft: false
+          prerelease: false
