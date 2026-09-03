@@ -1,5 +1,6 @@
 use base64::Engine;
 use bcrypt::{hash, verify, DEFAULT_COST};
+use chrono::Datelike;
 use lettre::message::{header::ContentType, Attachment, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
@@ -14,24 +15,11 @@ use std::{
 use tauri::path::BaseDirectory;
 use tauri_plugin_log::{Target, TargetKind};
 
-/// Unified base path helper (~/Documents/Pallab on Desktop/Arch, standard fallback on Android)
+/// Unified base path helper (~/Documents/Pallab)
 fn get_base_dir() -> PathBuf {
-    #[cfg(target_os = "android")]
-    {
-        // On Android, dirs::document_dir() often fails or returns None due to restricted permissions.
-        // Fall back to standard data storage or local path safely.
-        dirs::document_dir()
-            .or_else(dirs::data_dir)
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("Pallab")
-    }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        dirs::document_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("Pallab")
-    }
+    dirs::document_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("Pallab")
 }
 
 /// Resolve data files dynamically under ~/Documents/Pallab/data
@@ -284,7 +272,7 @@ fn get_next_letter_no(jamaat: Option<String>, org: String, dept: String, fy_str:
     format!("{:02}", max_no + 1)
 }
 
-/// Recursively scans database folder for all .letter files and returns their JSON content
+/// Recursively scans ~/Documents/Pallab/database for all .letter files and returns their JSON content
 #[tauri::command]
 fn get_all_letters() -> Result<Vec<Value>, String> {
     let db_path = get_database_path();
@@ -579,32 +567,73 @@ async fn send_email_with_pdf(
     Ok(())
 }
 
+/// Builds the same basename `save_report` would give this report's .report
+/// file (minus the extension), so the temp PDF and the saved report always
+/// agree, no matter what the caller passes in.
+fn report_temp_pdf_basename(report: &Value) -> String {
+    let reach = report.get("reach").and_then(Value::as_str).unwrap_or("");
+    let organization = report
+        .get("organization")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let report_type = report.get("type").and_then(Value::as_str).unwrap_or("");
+    let month = report.get("month").and_then(Value::as_str).unwrap_or("");
+    let date = report.get("date").and_then(Value::as_str).unwrap_or("");
+
+    format!(
+        "{} ({}) {} {} {} রিপোর্ট",
+        sanitize_filename(month),
+        sanitize_filename(date),
+        sanitize_filename(reach),
+        sanitize_filename(organization),
+        sanitize_filename(report_type)
+    )
+}
+
+/// Builds the same basename `save_letter` would give this letter's .letter
+/// file (minus the extension), so the temp PDF and the saved letter always
+/// agree, no matter what the caller passes in.
+fn letter_temp_pdf_basename(letter: &Value) -> String {
+    let no_str = extract_letter_no(letter).unwrap_or_else(|| "01".to_string());
+    let subject_title = sanitize_filename(&first_subject_title(letter));
+    let date_str = letter.get("date").and_then(|v| v.as_str()).unwrap_or("");
+    let eng_date = format_english_date(date_str);
+
+    if eng_date.is_empty() {
+        format!("{} '{}'", no_str, subject_title)
+    } else {
+        format!("{} ({}) '{}'", no_str, eng_date, subject_title)
+    }
+}
+
+/// Saves a rendered PDF preview to Pallab/tempPdf/, named to match the
+/// convention `save_letter`/`save_report` use for the corresponding
+/// .letter/.report file (same fields, same helper functions), just with a
+/// .pdf extension instead. `kind` selects which convention applies:
+/// `"report"` uses `report_temp_pdf_basename`, anything else (including
+/// omitted) uses `letter_temp_pdf_basename`.
 #[tauri::command]
-fn save_pdf_to_temp(pdf_base64: String, file_name: String) -> Result<String, String> {
+fn save_pdf_to_temp(pdf_base64: String, document: Value, kind: Option<String>) -> Result<String, String> {
     let clean_base64 = pdf_base64.split(',').last().unwrap_or(&pdf_base64);
 
     let pdf_bytes = base64::engine::general_purpose::STANDARD
         .decode(clean_base64)
         .map_err(|e| format!("Failed to decode PDF base64: {}", e))?;
 
-    // PDFs are stored separately from reports.
+    // PDFs are stored separately from letters/reports.
     // Final directory:
-    // Pallab/database/tempPdf/
+    // Pallab/tempPdf/
     let dir = get_base_dir().join("tempPdf");
 
     fs::create_dir_all(&dir)
         .map_err(|e| format!("Failed to create tempPdf folder {:?}: {}", dir, e))?;
 
-    // The frontend may pass either:
-    //   "মাস ... রিপোর্ট"
-    // or:
-    //   "মাস ... রিপোর্ট.report"
-    //
-    // Strip only the .report extension so the PDF has the
-    // exact same basename as the corresponding .report file.
-    let base_name = file_name.strip_suffix(".report").unwrap_or(&file_name);
+    let base_name = match kind.as_deref() {
+        Some("report") => report_temp_pdf_basename(&document),
+        _ => letter_temp_pdf_basename(&document),
+    };
 
-    let safe_name = sanitize_filename(base_name);
+    let safe_name = sanitize_filename(&base_name);
 
     let path = dir.join(format!("{}.pdf", safe_name));
 
@@ -617,7 +646,7 @@ fn save_pdf_to_temp(pdf_base64: String, file_name: String) -> Result<String, Str
 async fn print_pdf_silent(pdf_base64: String, printer_name: Option<String>) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        Ok(())
+        return Ok(());
     }
 
     #[cfg(not(target_os = "android"))]
@@ -699,6 +728,20 @@ fn save_amela(amela_data: serde_json::Value) -> Result<Value, String> {
     Ok(new_credentials)
 }
 
+/// The login form sends a numeric department code ('0'/'1'/'2') for admin/amela
+/// logins (matching Access.jsx's orgOptions), but hashes.json (synced from
+/// amela.json) is keyed by the department's full name. Without this mapping,
+/// every admin/amela login lookup misses and only the "dev" account (which
+/// doesn't need a department at all) can ever authenticate.
+fn resolve_department_name(department_no: &str) -> &str {
+    match department_no {
+        "0" => "মজলিস খোদ্দামুল আহমদীয়া",
+        "1" => "মজলিস আতফালুল আহমদীয়া",
+        "2" => "আহমদীয়া মুসলিম জামা'ত",
+        other => other,
+    }
+}
+
 #[tauri::command]
 fn authenticate_user(
     account_type: String,
@@ -715,20 +758,23 @@ fn authenticate_user(
     let hashes: Value = serde_json::from_str(&content)
         .map_err(|e| format!("Invalid JSON structure in hashes.json: {}", e))?;
 
+    let department_name = resolve_department_name(&department_no);
+
     let stored_hash = match account_type.as_str() {
         "dev" => hashes.get("dev").and_then(|v| v.as_str()),
 
         "admin" => hashes
             .get(&reach_no)
             .and_then(|r| r.get(&jamaat_no))
-            .and_then(|j| j.get(&department_no))
+            .and_then(|j| j.get(department_name))
             .and_then(|d| d.get("admin"))
             .and_then(|a| a.as_str()),
 
         "amela" => hashes
             .get(&reach_no)
             .and_then(|r| r.get(&jamaat_no))
-            .and_then(|j| j.get(&department_no))
+            .and_then(|j| j.get(department_name))
+            .and_then(|d| d.get(&title_no))
             .and_then(|t| t.as_str()),
 
         _ => return Err("Invalid account type specified.".to_string()),
@@ -764,6 +810,49 @@ fn save_jamaat(jamaat_data: Value) -> Result<(), String> {
     fs::write(
         path,
         serde_json::to_string_pretty(&jamaat_data).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_cosmetics(cosmetics_data: Value) -> Result<(), String> {
+    let path = get_data_path("cosmetics.json");
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::write(
+        path,
+        serde_json::to_string_pretty(&cosmetics_data).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Ensures cosmetics.json exists so the letter/report editors always have
+/// something to read on first run. Does nothing if the file is already
+/// there — this only ever creates the empty shape, never overwrites data.
+#[tauri::command]
+fn init_cosmetics_default() -> Result<(), String> {
+    let path = get_data_path("cosmetics.json");
+
+    if path.exists() {
+        return Ok(());
+    }
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let default_cosmetics = json!({
+        "quote": [],
+        "greetings": [],
+        "farewell": []
+    });
+
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&default_cosmetics).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())
 }
@@ -881,12 +970,17 @@ fn sync_hashes_from_amela() -> Result<Value, String> {
     Ok(Value::Object(created_passwords))
 }
 
+fn main() {
+    run();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             save_letter,
+            delete_letter,
             save_report,
             get_all_letters,
             send_email_with_pdf,
@@ -899,8 +993,9 @@ pub fn run() {
             save_pdf_to_temp,
             get_all_reports,
             delete_report,
-            delete_letter,
-            save_jamaat
+            save_jamaat,
+            save_cosmetics,
+            init_cosmetics_default,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

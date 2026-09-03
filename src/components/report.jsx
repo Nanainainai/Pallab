@@ -1914,22 +1914,15 @@ export default function Report({
         const pdfBase64 =
           await generatePdfBase64();
 
-        const reportDate =
-          formValues.date ||
-          "Report";
-
-        const reportType =
-          formValues.type ||
-          "রিপোর্ট";
-
         await invoke(
           "save_pdf_to_temp",
           {
             pdfBase64,
-            fileName:
-              `${reportType} (${reportDate}) ${formValues.organization ||
-                ""
-                }`.trim(),
+            kind: "report",
+            document:
+              clone(
+                reportPayload || formValues
+              ),
           }
         );
       } catch (error) {

@@ -514,11 +514,15 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
       const pages = getLetterPages();
       if (!pages.length) return;
       const pdfBase64 = await elementsToPdfBase64(pages);
-      const letterNo = fromBanglaDigits(formValues["letter-no"] || "01");
-      const subjectTitle = subject.subject?.trim() || "Letter";
+      const document = {
+        "letter-no": formValues["letter-no"] || "",
+        date: subject.date || formValues["date"] || "",
+        subjects: [{ subject: subject.subject || "Letter" }],
+      };
       await invoke("save_pdf_to_temp", {
         pdfBase64,
-        fileName: `${letterNo} '${subjectTitle}'`,
+        kind: "letter",
+        document,
       });
     } catch (error) {
       console.error("Save to PDF failed:", error);

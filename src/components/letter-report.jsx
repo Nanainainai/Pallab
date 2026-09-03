@@ -853,20 +853,23 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
   const handleSaveToPdf = async () => {
     try {
       const savedPaths = [];
+      const rawSubjects = subjects.filter(s => s.subject.trim());
 
       for (let index = 0; index < previewLetters.length; index++) {
         const pages = getLetterPages(index);
         if (!pages.length) continue;
 
-        const letter = previewLetters[index];
         const pdfBase64 = await elementsToPdfBase64(pages);
+        const rawSubject = rawSubjects[index] || {};
 
-        const letterNo = fromBanglaDigits(letter.letterNo || "01");
-        const subjectTitle = letter.subject?.trim() || "Letter";
-        const fileName = `${letterNo} '${subjectTitle}'`;
+        const document = {
+          "letter-no": rawSubject.letterNo || formValues["letter-no"] || "",
+          date: rawSubject.date || formValues["date"] || "",
+          subjects: [{ subject: rawSubject.subject || "Letter" }],
+        };
 
         savedPaths.push(
-          await invoke("save_pdf_to_temp", { pdfBase64, fileName })
+          await invoke("save_pdf_to_temp", { pdfBase64, kind: "letter", document })
         );
       }
 
