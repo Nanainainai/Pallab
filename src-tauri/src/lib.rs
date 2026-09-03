@@ -14,11 +14,24 @@ use std::{
 use tauri::path::BaseDirectory;
 use tauri_plugin_log::{Target, TargetKind};
 
-/// Unified base path helper (~/Documents/Pallab)
+/// Unified base path helper (~/Documents/Pallab on Desktop/Arch, standard fallback on Android)
 fn get_base_dir() -> PathBuf {
-    dirs::document_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("Pallab")
+    #[cfg(target_os = "android")]
+    {
+        // On Android, dirs::document_dir() often fails or returns None due to restricted permissions.
+        // Fall back to standard data storage or local path safely.
+        dirs::document_dir()
+            .or_else(dirs::data_dir)
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("Pallab")
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        dirs::document_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("Pallab")
+    }
 }
 
 /// Resolve data files dynamically under ~/Documents/Pallab/data
@@ -271,7 +284,7 @@ fn get_next_letter_no(jamaat: Option<String>, org: String, dept: String, fy_str:
     format!("{:02}", max_no + 1)
 }
 
-/// Recursively scans ~/Documents/Pallab/database for all .letter files and returns their JSON content
+/// Recursively scans database folder for all .letter files and returns their JSON content
 #[tauri::command]
 fn get_all_letters() -> Result<Vec<Value>, String> {
     let db_path = get_database_path();
@@ -604,7 +617,7 @@ fn save_pdf_to_temp(pdf_base64: String, file_name: String) -> Result<String, Str
 async fn print_pdf_silent(pdf_base64: String, printer_name: Option<String>) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "android"))]
@@ -716,7 +729,6 @@ fn authenticate_user(
             .get(&reach_no)
             .and_then(|r| r.get(&jamaat_no))
             .and_then(|j| j.get(&department_no))
-            .and_then(|d| d.get(&title_no))
             .and_then(|t| t.as_str()),
 
         _ => return Err("Invalid account type specified.".to_string()),
@@ -887,6 +899,8 @@ pub fn run() {
             save_pdf_to_temp,
             get_all_reports,
             delete_report,
+            delete_letter,
+            save_jamaat
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
