@@ -46,6 +46,7 @@ const TYPE_MAPPING = {
   "জামা'ত": "jamaat",
   "সংগঠন": "organization",
   "দপ্তর": "dafter",
+  "দপ্তর ক্ষেত্র": "field",
   "পদবী": "designation",
   "নাম": "name",
   "ইমেইল": "email"

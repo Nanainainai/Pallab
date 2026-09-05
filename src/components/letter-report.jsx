@@ -276,20 +276,19 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.isContentEditable || e.target.tagName === 'TEXTAREA') {
-        return;
-      }
-      const inputs = getInputs();
-      const currentIndex = inputs.indexOf(document.activeElement);
+      const isEditableArea = e.target.isContentEditable || e.target.tagName === 'TEXTAREA';
+      const shouldNavigate = isEditableArea
+        ? e.key === 'Enter' && e.shiftKey
+        : e.key === 'Enter';
 
-      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      if (shouldNavigate) {
         e.preventDefault();
+        const inputs = getInputs();
+        const currentIndex = inputs.indexOf(document.activeElement);
         if (currentIndex < inputs.length - 1) inputs[currentIndex + 1].focus();
       }
-      else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (currentIndex > 0) inputs[currentIndex - 1].focus();
-      }
+
+      if (isEditableArea) return;
 
       if (e.ctrlKey && !e.shiftKey) {
         if (e.key === 'z' && index > 0) {
@@ -342,8 +341,8 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
           case '4':
           case '5': {
             const sectionMap = {
-              '1': ['receiver-reach', 'receiver', 'receiver-title', 'receiver-department', 'receiver-jamaat'],
-              '2': ['sender-reach', 'sender', 'sender-title', 'sender-department', 'sender-jamaat'],
+              '1': ['receiver-reach', 'receiver', 'receiver-title', 'receiver-field', 'receiver-department', 'receiver-jamaat'],
+              '2': ['sender-reach', 'sender', 'sender-title', 'sender-field', 'sender-department', 'sender-jamaat'],
               '4': ['fy-start', 'fy-end', 'letter-no', 'date'],
               '5': ['subject']
             };
@@ -378,8 +377,8 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
       if (e.altKey && !e.shiftKey) {
         if (e.key >= '1' && e.key <= '5') {
           const sectionMap = {
-            '1': ['receiver-reach', 'receiver', 'receiver-title', 'receiver-department', 'receiver-jamaat'],
-            '2': ['sender-reach', 'sender', 'sender-title', 'sender-department', 'sender-jamaat'],
+            '1': ['receiver-reach', 'receiver', 'receiver-title', 'receiver-field', 'receiver-department', 'receiver-jamaat'],
+            '2': ['sender-reach', 'sender', 'sender-title', 'sender-field', 'sender-department', 'sender-jamaat'],
             '4': ['fy-start', 'fy-end', 'letter-no', 'date'],
             '5': ['subject']
           };
@@ -596,6 +595,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
       return {
         sender: formValues["sender"],
         senderTitle: formValues["sender-title"],
+        senderField: formValues["sender-field"],
         senderDepartment: formValues["sender-department"],
         senderJamaat: formValues["sender-jamaat"],
         senderReach: formValues["sender-reach"],
@@ -612,6 +612,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
         date: prettyStoredDate(subject.date || formValues["date"]),
 
         receiverTitle: formValues["receiver-title"],
+        receiverField: formValues["receiver-field"],
         receiverDepartment: formValues["receiver-department"],
         receiverJamaat: formValues["receiver-jamaat"],
 
@@ -1011,7 +1012,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
         value={formValues["receiver-reach"] || ""}
         className="w-full font-bengali"
       />
-      <div className="gap-x-2 grid grid-cols-[1fr_2fr] w-full">
+      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2fr] w-full">
         <HybridInput
           name="receiver-title"
           data-default="সদর"
@@ -1023,6 +1024,22 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
             department: formValues["receiver-department"]
           })}
           value={formValues["receiver-title"] || ""}
+          onChange={internalHandleInput}
+        />
+        <HybridInput
+          name="receiver-field"
+          data-default="নেই"
+          placeholderInitial="দপ্তর ক্ষেত্র"
+          defaultValue="নেই"
+          optionsFetcher={async () => {
+            const opts = await getOptions("field", {
+              reach: formValues["receiver-reach"],
+              jamaat: formValues["receiver-jamaat"],
+              department: formValues["receiver-department"]
+            });
+            return ["নেই", ...opts.filter((o) => o !== "নেই")];
+          }}
+          value={formValues["receiver-field"] || "নেই"}
           onChange={internalHandleInput}
         />
         <HybridInput
@@ -1101,7 +1118,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
           onChange={internalHandleInput}
         />
       </div>
-      <div className="gap-x-2 grid grid-cols-[1fr_2fr] w-full">
+      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2fr] w-full">
         <HybridInput
           name="sender-title"
           data-default="পদবী"
@@ -1113,6 +1130,22 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
             department: formValues["sender-department"]
           })}
           value={formValues["sender-title"] || ""}
+          onChange={internalHandleInput}
+        />
+        <HybridInput
+          name="sender-field"
+          data-default="নেই"
+          placeholderInitial="দপ্তর ক্ষেত্র"
+          defaultValue="নেই"
+          optionsFetcher={async () => {
+            const opts = await getOptions("field", {
+              reach: formValues["sender-reach"],
+              jamaat: formValues["sender-jamaat"],
+              department: formValues["sender-department"]
+            });
+            return ["নেই", ...opts.filter((o) => o !== "নেই")];
+          }}
+          value={formValues["sender-field"] || "নেই"}
           onChange={internalHandleInput}
         />
         <HybridInput
@@ -1498,6 +1531,24 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
                       placeholderInitial={name}
                       defaultValue={name}
                       value={varValue}
+                      onChange={(e) => setVarVal(e.target.value)}
+                    />
+                  );
+
+                case "field":
+                  return (
+                    <HybridInput
+                      optionsFetcher={async () => {
+                        const opts = await getOptions("field", {
+                          reach: formValues["sender-reach"],
+                          jamaat: formValues["sender-jamaat"],
+                          department: formValues["sender-department"]
+                        });
+                        return ["নেই", ...opts.filter((o) => o !== "নেই")];
+                      }}
+                      placeholderInitial={name}
+                      defaultValue="নেই"
+                      value={varValue || "নেই"}
                       onChange={(e) => setVarVal(e.target.value)}
                     />
                   );

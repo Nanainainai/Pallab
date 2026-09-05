@@ -157,6 +157,7 @@ export async function autofillPerson(formValues, changedField, value) {
     if (prefix !== "onulipi") {
         updated[`${prefix}-title`] = person.title;
         updated[prefix] = person.name;
+        updated[`${prefix}-field`] = person.field || "নেই";
     }
 
     return updated;

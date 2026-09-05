@@ -41,6 +41,8 @@ export default function Boilerplate({
   const fyEnd = formValues.fyEnd || "২৬";
   const department = formValues.department || "উমুমী";
   const letterNo = formValues.letterNo || "০১";
+  const serialNo = formValues.serialNo || "";
+  const senderField = formValues.senderField || "";
 
   const date = formValues.date || "১০.০৭.২০২৬";
   const subject = formValues.subject || "তালিমী ক্লাসের রিপোর্ট প্রেরণ প্রসঙ্গে";
@@ -49,6 +51,7 @@ export default function Boilerplate({
   const receiverDepartment =
     formValues.receiverDepartment || "মজলিস খোদ্দামুল আহমদীয়া";
   const receiverJamaat = formValues.receiverJamaat || "বাংলাদেশ";
+  const receiverField = formValues.receiverField || "";
 
   const onulipi = formValues.onulipi || [];
   const senderReach = formValues.senderReach || "স্থানীয়";
@@ -125,6 +128,7 @@ export default function Boilerplate({
               <div className="flex flex-row justify-between">
                 <div>
                   {senderPrefix}/{department}/{fyStart}-{fyEnd}/{letterNo}
+                  {serialNo && ` (${serialNo})`}
                 </div>
                 <div>তারিখঃ {date}</div>
               </div>
@@ -134,6 +138,9 @@ export default function Boilerplate({
                 <>
                   <div className="pt-3">মোহতরম</div>
                   <div>{receiverTitle} সাহেব</div>
+                  {receiverField && receiverField !== "নেই" && (
+                    <div>{receiverField}</div>
+                  )}
                   <div>
                     {receiverDepartment}, {receiverJamaat}
                   </div>
@@ -151,6 +158,9 @@ export default function Boilerplate({
                   <div>খাকসার</div>
                   <div>{sender}</div>
                   <div>{senderTitle}</div>
+                  {senderField && senderField !== "নেই" && (
+                    <div>{senderField}</div>
+                  )}
                   <div>
                     {senderDepartment}, {senderJamaat}
                   </div>

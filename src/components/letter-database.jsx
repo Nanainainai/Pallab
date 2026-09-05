@@ -41,6 +41,7 @@ import {
   getSubjectsForDafter,
   getTemplate,
   clone,
+  stripLetterMeta,
 } from "../lib/letterUtils";
 
 registerLocale("bn", bn);
@@ -397,17 +398,19 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.target.isContentEditable || event.target.tagName === "TEXTAREA") return;
-      const inputs = getInputs();
-      const currentIndex = inputs.indexOf(document.activeElement);
+      const isEditableArea = event.target.isContentEditable || event.target.tagName === "TEXTAREA";
+      const shouldNavigate = isEditableArea
+        ? event.key === "Enter" && event.shiftKey
+        : event.key === "Enter";
 
-      if (event.key === "Enter" || event.key === "ArrowDown") {
+      if (shouldNavigate) {
         event.preventDefault();
+        const inputs = getInputs();
+        const currentIndex = inputs.indexOf(document.activeElement);
         if (currentIndex < inputs.length - 1) inputs[currentIndex + 1].focus();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (currentIndex > 0) inputs[currentIndex - 1].focus();
       }
+
+      if (isEditableArea) return;
 
       if (event.ctrlKey && !event.shiftKey) {
         if (event.key === "z" && historyIndex > 0) {
@@ -430,6 +433,7 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
     ? {
       sender: formValues.sender,
       senderTitle: formValues["sender-title"],
+      senderField: formValues["sender-field"],
       senderDepartment: formValues["sender-department"],
       senderJamaat: formValues["sender-jamaat"],
       senderReach: formValues["sender-reach"],
@@ -440,6 +444,7 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
       letterNo: toBanglaDigits(formValues["letter-no"] || ""),
       date: prettyStoredDate(formValues.date),
       receiverTitle: formValues["receiver-title"],
+      receiverField: formValues["receiver-field"],
       receiverDepartment: formValues["receiver-department"],
       receiverJamaat: formValues["receiver-jamaat"],
       receiverReach: formValues["receiver-reach"],
@@ -607,6 +612,8 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
       case "designation":
       case "title":
         return <HybridInput optionsFetcher={() => getOptions("title", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"] })} placeholderInitial={name} defaultValue={name} value={value} onChange={(e) => updateVariable(name, e.target.value)} />;
+      case "field":
+        return <HybridInput optionsFetcher={async () => { const opts = await getOptions("field", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"] }); return ["নেই", ...opts.filter((o) => o !== "নেই")]; }} placeholderInitial={name} defaultValue="নেই" value={value || "নেই"} onChange={(e) => updateVariable(name, e.target.value)} />;
       case "name":
         return <HybridInput optionsFetcher={() => getOptions("name", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"], title: formValues["sender-title"] })} placeholderInitial={name} defaultValue={name} value={value} onChange={(e) => updateVariable(name, e.target.value)} />;
       case "month":
@@ -655,8 +662,9 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
     <form ref={formRef} onSubmit={(e) => e.preventDefault()} className="w-full">
       <div className="separator">প্রাপক</div>
       <HybridInput name="receiver-reach" data-default="কেন্দ্রীয়" placeholderInitial="প্রাপকের ধরণ" defaultValue="কেন্দ্রীয়" optionsFetcher={() => getOptions("reach")} onChange={internalHandleInput} value={formValues["receiver-reach"] || ""} className="w-full font-bengali" />
-      <div className="gap-x-2 grid grid-cols-[1fr_2fr] w-full">
+      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2fr] w-full">
         <HybridInput name="receiver-title" data-default="সদর" placeholderInitial="পদবী" defaultValue="সদর" optionsFetcher={() => getOptions("title", { reach: formValues["receiver-reach"], jamaat: formValues["receiver-jamaat"], department: formValues["receiver-department"] })} value={formValues["receiver-title"] || ""} onChange={internalHandleInput} />
+        <HybridInput name="receiver-field" data-default="নেই" placeholderInitial="দপ্তর ক্ষেত্র" defaultValue="নেই" optionsFetcher={async () => { const opts = await getOptions("field", { reach: formValues["receiver-reach"], jamaat: formValues["receiver-jamaat"], department: formValues["receiver-department"] }); return ["নেই", ...opts.filter((o) => o !== "নেই")]; }} value={formValues["receiver-field"] || "নেই"} onChange={internalHandleInput} />
         <HybridInput name="receiver" data-default="মোস্তাক আহমদ" placeholderInitial="নাম" defaultValue="মোস্তাক আহমদ" optionsFetcher={() => getOptions("name", { reach: formValues["receiver-reach"], jamaat: formValues["receiver-jamaat"], department: formValues["receiver-department"], title: formValues["receiver-title"] })} value={formValues.receiver || ""} onChange={internalHandleInput} />
       </div>
       <div className="gap-x-2 grid grid-cols-2 w-full">
@@ -670,8 +678,9 @@ function DatabaseLetterEditor({ initialLetter, onClose, onSaved }) {
         <HybridInput name="sender-department" data-default="মজলিস খোদ্দামুল আহমীয়া" placeholderInitial="সংগঠন" defaultValue="মজলিস খোদ্দামুল আহমীয়া" optionsFetcher={() => getOptions("department", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"] })} value={formValues["sender-department"] || ""} onChange={internalHandleInput} />
         <HybridInput name="sender-jamaat" data-default="বাংলাদেশ" placeholderInitial="জামা'ত" defaultValue="বাংলাদেশ" optionsFetcher={() => getOptions("jamaat", { reach: formValues["sender-reach"] })} value={formValues["sender-jamaat"] || ""} onChange={internalHandleInput} />
       </div>
-      <div className="gap-x-2 grid grid-cols-[1fr_2fr] w-full">
+      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2fr] w-full">
         <HybridInput name="sender-title" data-default="পদবী" placeholderInitial="পদবী" defaultValue="সহকারী তবলীগ" optionsFetcher={() => getOptions("title", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"] })} value={formValues["sender-title"] || ""} onChange={internalHandleInput} />
+        <HybridInput name="sender-field" data-default="নেই" placeholderInitial="দপ্তর ক্ষেত্র" defaultValue="নেই" optionsFetcher={async () => { const opts = await getOptions("field", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"] }); return ["নেই", ...opts.filter((o) => o !== "নেই")]; }} value={formValues["sender-field"] || "নেই"} onChange={internalHandleInput} />
         <HybridInput name="sender" data-default="শাহ নাদিম আহমদ" placeholderInitial="নাম" defaultValue="নাম" optionsFetcher={() => getOptions("name", { reach: formValues["sender-reach"], jamaat: formValues["sender-jamaat"], department: formValues["sender-department"], title: formValues["sender-title"] })} value={formValues.sender || ""} onChange={internalHandleInput} />
       </div>
 
@@ -833,6 +842,14 @@ const getLetterMeta = (letter) => {
     letter?.["receiver-department"] ||
     "";
 
+  const senderField =
+    letter?.["sender-field"] ||
+    "";
+
+  const receiverField =
+    letter?.["receiver-field"] ||
+    "";
+
   const senderReach =
     letter?.["sender-reach"] ||
     "";
@@ -910,6 +927,7 @@ const getLetterMeta = (letter) => {
     sender: letter?.sender || "",
     senderTitle:
       letter?.["sender-title"] || "",
+    senderField,
     senderDepartment,
     senderJamaat:
       letter?.["sender-jamaat"] || "",
@@ -928,6 +946,7 @@ const getLetterMeta = (letter) => {
 
     receiverTitle:
       letter?.["receiver-title"] || "",
+    receiverField,
     receiverDepartment,
     receiverJamaat:
       letter?.["receiver-jamaat"] || "",
@@ -1002,6 +1021,9 @@ const getLetterMeta = (letter) => {
     receiverDept:
       receiverDepartment,
 
+    senderField,
+    receiverField,
+
     fiscalYear,
   };
 };
@@ -1013,6 +1035,7 @@ export default function LetterDatabase({ initialLetters = [], DAFTERS = [] }) {
   const [selectedReachFilter, setSelectedReachFilter] = useState("সমস্ত");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("সমস্ত");
   const [selectedDafterFilter, setSelectedDafterFilter] = useState("সমস্ত");
+  const [selectedFieldFilter, setSelectedFieldFilter] = useState("সমস্ত");
   const [selectedFyFilter, setSelectedFyFilter] = useState("সমস্ত");
   const [expandedKeys, setExpandedKeys] = useState({});
   const letterRefs = useRef({});
@@ -1114,6 +1137,17 @@ export default function LetterDatabase({ initialLetters = [], DAFTERS = [] }) {
     )
   );
 
+  const availableFields = Array.from(
+    new Set(
+      metaList
+        .flatMap(({ meta }) => [
+          meta.senderField,
+          meta.receiverField,
+        ])
+        .filter((value) => value && value !== "নেই")
+    )
+  );
+
   const filteredLetters = letters.filter(
     (letter) => {
       const meta = getLetterMeta(letter);
@@ -1163,6 +1197,24 @@ export default function LetterDatabase({ initialLetters = [], DAFTERS = [] }) {
         meta.dafter ===
         selectedDafterFilter;
 
+      const effectiveField =
+        meta.storageType === "প্রাপ্ত"
+          ? meta.senderField
+          : meta.receiverField;
+
+      const matchesField =
+        selectedFieldFilter === "সমস্ত" ||
+        effectiveField === selectedFieldFilter ||
+        (
+          selectedTypeFilter === "সমস্ত" &&
+          (
+            meta.senderField ===
+            selectedFieldFilter ||
+            meta.receiverField ===
+            selectedFieldFilter
+          )
+        );
+
       const matchesFy =
         selectedFyFilter === "সমস্ত" ||
         meta.fiscalYear ===
@@ -1173,6 +1225,7 @@ export default function LetterDatabase({ initialLetters = [], DAFTERS = [] }) {
         matchesReach &&
         matchesDept &&
         matchesDafter &&
+        matchesField &&
         matchesFy
       );
     }
@@ -1282,11 +1335,12 @@ export default function LetterDatabase({ initialLetters = [], DAFTERS = [] }) {
 
   return (
     <form onSubmit={(e) => e.preventDefault()} className="w-full">
-      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2.3fr_1fr_1fr] mb-4 w-full">
+      <div className="gap-x-2 grid grid-cols-[1fr_1fr_1.8fr_1fr_1fr_1fr] mb-4 w-full">
         <HybridInput name="filter-type" placeholderInitial="প্রেরিত/প্রাপ্ত" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", "প্রেরিত", "প্রাপ্ত"]} value={selectedTypeFilter} onChange={(e) => setSelectedTypeFilter(e.target.value)} />
         <HybridInput name="filter-reach" placeholderInitial="পর্যায়" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", ...availableReaches]} value={selectedReachFilter} onChange={(e) => setSelectedReachFilter(e.target.value)} />
         <HybridInput name="filter-dept" placeholderInitial="সংগঠন" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", ...availableDepartments]} value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)} />
         <HybridInput name="filter-dafter" placeholderInitial="দপ্তর" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", ...availableDaftersList]} value={selectedDafterFilter} onChange={(e) => setSelectedDafterFilter(e.target.value)} />
+        <HybridInput name="filter-field" placeholderInitial="দপ্তর ক্ষেত্র" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", ...availableFields]} value={selectedFieldFilter} onChange={(e) => setSelectedFieldFilter(e.target.value)} />
         <HybridInput name="filter-fy" placeholderInitial="অর্থবছর" defaultValue="সমস্ত" optionsFetcher={["সমস্ত", ...availableFiscalYears]} value={selectedFyFilter} onChange={(e) => setSelectedFyFilter(e.target.value)} />
       </div>
 
