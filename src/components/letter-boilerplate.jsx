@@ -91,7 +91,7 @@ export default function Boilerplate({
         className="box-border relative bg-white w-[210mm] min-h-[297mm] overflow-hidden print:transform-none origin-top-left letter-page"
       >
         <div className="w-full">
-          <div className="bg-gray-200 forced-color-adjust-none pt-2 pb-2 w-full text-center">
+          <div className="bg-white forced-color-adjust-none pt-2 pb-2 w-full text-center">
             <div className="font-ar text-4xl">9</div>
             <div className="flex flex-row justify-center items-center gap-3">
               <div className="flex justify-center items-center bg-gray-300 rounded-4xl outline-1 w-10 h-10 overflow-hidden">
@@ -105,13 +105,17 @@ export default function Boilerplate({
                 {senderDepartment}, {senderJamaat}
               </div>
             </div>
-            <div className="flex flex-row justify-center items-center pt-1 pb-2 font-bengali text-মদ">
+            <div className="flex flex-row justify-center items-center pt-1 pb-2 font-bengali text-md">
               {[info.address, info.phone, info.email]
                 .filter(Boolean)
                 .join(" • ")}
             </div>
           </div>
-          <div className="bg-linear-to-r from-black via-white to-black w-full h-1"></div>
+
+          {/* Solid Black Separator Line with Horizontal Padding */}
+          <div className="px-12 w-full">
+            <div className="bg-black w-full h-[1.5px]"></div>
+          </div>
         </div>
 
         {Minar && (
@@ -122,10 +126,11 @@ export default function Boilerplate({
           />
         )}
 
-        <div className="fixed mt-37 mr-12 ml-12 w-[95%] h-228 font-bengali text-black text-sm">
+        <div className="fixed mt-37 mr-12 ml-12 w-[95%] h-228 font-bengali text-black text-sm leading-relaxed">
           <div className="flex flex-col justify-between h-full">
             <div className="h-full">
-              <div className="flex flex-row justify-between">
+              {/* Reference Header / Date */}
+              <div className="flex flex-row justify-between mb-5">
                 <div>
                   {senderPrefix}/{department}/{fyStart}-{fyEnd}/{letterNo}
                   {serialNo && ` (${serialNo})`}
@@ -136,38 +141,63 @@ export default function Boilerplate({
               {!isAttachment ? (
                 /* --- Normal Letter View Mode --- */
                 <>
-                  <div className="pt-3">মোহতরম</div>
-                  <div>{receiverTitle} সাহেব</div>
-                  {receiverField && receiverField !== "নেই" && (
-                    <div>{receiverField}</div>
-                  )}
-                  <div>
-                    {receiverDepartment}, {receiverJamaat}
+                  {/* Receiver Whereabouts Header */}
+                  <div className="mb-4">
+                    <div>মোহতরম</div>
+                    <div>{receiverTitle} সাহেব</div>
+                    {receiverField && receiverField !== "নেই" && (
+                      <div>{receiverField}</div>
+                    )}
+                    <div>
+                      {receiverDepartment}, {receiverJamaat}
+                    </div>
                   </div>
-                  <div>
+
+                  {/* Subject */}
+                  <div className="mb-4">
                     বিষয়ঃ{" "}
                     <b>
                       <u>{subject}।</u>
                     </b>
                   </div>
-                  <div>মোকাররম</div>
-                  <div className="mb-1 whitespace-pre-wrap">{greeting}</div>
-                  <div dangerouslySetInnerHTML={{ __html: formValues.body }} />
-                  <div className="mt-1 whitespace-pre-wrap">{farewell}</div>
-                  <div>ওয়াসসালাম</div>
-                  <div>খাকসার</div>
-                  <div>{sender}</div>
-                  <div>{senderTitle}</div>
-                  {senderField && senderField !== "নেই" && (
-                    <div>{senderField}</div>
-                  )}
-                  <div>
-                    {senderDepartment}, {senderJamaat}
+
+                  {/* Greetings */}
+                  <div className="mb-4">
+                    <div>মোকাররম</div>
+                    {greeting && (
+                      <div className="whitespace-pre-wrap">{greeting}</div>
+                    )}
+                  </div>
+
+                  {/* Body Section */}
+                  <div className="mb-5 leading-relaxed">
+                    <div
+                      dangerouslySetInnerHTML={{ __html: formValues.body }}
+                    />
+                  </div>
+
+                  {/* Farewell & Sender Whereabouts */}
+                  <div className="mb-4">
+                    {farewell && (
+                      <div className="mb-1 whitespace-pre-wrap">
+                        {farewell}
+                      </div>
+                    )}
+                    <div>ওয়াসসালাম</div>
+                    <div>খাকসার</div>
+                    <div>{sender}</div>
+                    <div>{senderTitle}</div>
+                    {senderField && senderField !== "নেই" && (
+                      <div>{senderField}</div>
+                    )}
+                    <div>
+                      {senderDepartment}, {senderJamaat}
+                    </div>
                   </div>
                 </>
               ) : (
                 /* --- Attachment View Mode --- */
-                <div className="flex flex-col pt-3">
+                <div className="flex flex-col pt-3 mb-5 leading-relaxed">
                   <div
                     dangerouslySetInnerHTML={{ __html: attachmentData.body }}
                   />
@@ -177,8 +207,8 @@ export default function Boilerplate({
 
             <div>
               {!isAttachment && onulipi.length > 0 && (
-                <>
-                  <div className="bottom-0 mt-4">
+                <div className="mt-4 pt-2">
+                  <div className="mb-1">
                     <u>অনুলিপিঃ</u>
                   </div>
                   {[...onulipi]
@@ -197,7 +227,7 @@ export default function Boilerplate({
                         {entry.jamaat && `, ${entry.jamaat}`}।
                       </div>
                     ))}
-                </>
+                </div>
               )}
               {isAttachment && attachmentData.annexCode && (
                 <div className="text-right">{attachmentData.annexCode}</div>
