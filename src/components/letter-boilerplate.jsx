@@ -169,8 +169,8 @@ export default function Boilerplate({
                     )}
                   </div>
 
-                  {/* Body Section */}
-                  <div className="mb-5 leading-relaxed">
+                  {/* Body Section - Increased font size to text-base */}
+                  <div className="mb-5 text-base leading-relaxed">
                     <div
                       dangerouslySetInnerHTML={{ __html: formValues.body }}
                     />
@@ -196,8 +196,8 @@ export default function Boilerplate({
                   </div>
                 </>
               ) : (
-                /* --- Attachment View Mode --- */
-                <div className="flex flex-col pt-3 mb-5 leading-relaxed">
+                /* --- Attachment View Mode - Increased font size to text-base --- */
+                <div className="flex flex-col pt-3 mb-5 text-base leading-relaxed">
                   <div
                     dangerouslySetInnerHTML={{ __html: attachmentData.body }}
                   />
