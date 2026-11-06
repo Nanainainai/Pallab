@@ -8,15 +8,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            name: windows
-          - os: ubuntu-22.04
-            name: linux
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -27,18 +19,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: Install Linux dependencies
-        if: matrix.name == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            xdg-utils \
-            build-essential
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -53,6 +33,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Rep.ort ${{ github.ref_name }}"
-          releaseBody: "Download the appropriate build for your platform below."
+          releaseBody: "Download the Windows build below."
           releaseDraft: false
           prerelease: false
