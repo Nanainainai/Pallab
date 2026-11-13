@@ -15,10 +15,21 @@ const findDafterForTitle = (tree, title) => {
       for (const orgKey in jamaatObj) {
         const orgObj = jamaatObj[orgKey];
         if (orgObj && typeof orgObj === 'object') {
-          for (const dafterKey in orgObj) {
-            const dafterObj = orgObj[dafterKey];
-            if (dafterObj && typeof dafterObj === 'object' && title in dafterObj) {
-              return dafterKey;
+          // If the orgObj contains fields/sub-levels or direct dafters
+          for (const k in orgObj) {
+            const val = orgObj[k];
+            // Check if k is a dafter containing title, or if it's a field level container
+            if (val && typeof val === 'object') {
+              if (title in val) {
+                return k;
+              }
+              // Check one level deeper if "dafter khetro" is structured as a nesting key
+              for (const subKey in val) {
+                const subVal = val[subKey];
+                if (subVal && typeof subVal === 'object' && title in subVal) {
+                  return subKey;
+                }
+              }
             }
           }
         }
@@ -40,13 +51,31 @@ const extractAllTitles = (tree) => {
       for (const orgKey in jamaatObj) {
         const orgObj = jamaatObj[orgKey];
         if (orgObj && typeof orgObj === 'object') {
-          for (const dafterKey in orgObj) {
-            const dafterObj = orgObj[dafterKey];
-            if (dafterObj && typeof dafterObj === 'object') {
-              for (const titleKey in dafterObj) {
-                if (titleKey && titleKey.trim()) {
-                  titles.add(titleKey.trim());
+          for (const k in orgObj) {
+            const val = orgObj[k];
+            if (val && typeof val === 'object') {
+              // Check if val has titles directly or inside sub-keys (khetro)
+              for (const subKey in val) {
+                const subVal = val[subKey];
+                if (subVal && typeof subVal === 'object') {
+                  // Could be a dafter or a khetro
+                  for (const innerKey in subVal) {
+                    const innerVal = subVal[innerKey];
+                    if (innerVal && typeof innerVal === 'object' && !('name' in innerVal || 'phone' in innerVal)) {
+                      // It's a title map
+                      if (innerKey && innerKey.trim()) titles.add(innerKey.trim());
+                    } else if (innerKey && innerKey.trim() && (innerVal?.name || innerVal?.phone || innerVal?.email)) {
+                      titles.add(innerKey.trim());
+                    }
+                  }
+                  if (subKey && subKey.trim() && !DAFTER_ORDER_INCLUDES(subKey) && subVal?.name) {
+                    // direct title check
+                  }
                 }
+              }
+              // Standard traversal
+              if (titleKeyInObject(val)) {
+                // handled below
               }
             }
           }
@@ -55,6 +84,37 @@ const extractAllTitles = (tree) => {
     }
   }
   return Array.from(titles);
+};
+
+const DAFTER_ORDER = [
+  "সদর",
+  "তাজনীদ",
+  "এতেমাদ",
+  "তরবিয়ত",
+  "নও মোবাঈন",
+  "রিশতানাতা",
+  "তাবলীগ",
+  "তালীম",
+  "ওয়াকারে আমল",
+  "মাল",
+  "তাহরিকে জাদীদ",
+  "ওয়াকফে জাদীদ",
+  "সানাত এ তেজারাত",
+  "উমুরে তোলাবা",
+  "খেদমতে খালক",
+  "সেহতে জিসমানী",
+  "ইশায়াত",
+  "আতফাল",
+  "উমুমী",
+  "ওয়াকফে নও",
+  "মোহাসেব"
+];
+
+const DAFTER_ORDER_INCLUDES = (key) => DAFTER_ORDER.includes(key);
+
+const titleKeyInObject = (obj) => {
+  if (!obj || typeof obj !== 'object') return false;
+  return Object.values(obj).some(v => v && typeof v === 'object' && ('name' in v || 'phone' in v || 'email' in v));
 };
 
 const createEmptyMember = () => ({
@@ -71,10 +131,11 @@ export default function AmelaViewAndEdit() {
   const [data, setData] = useState({});
   const [isEditable, setIsEditable] = useState(false);
 
-  // Filter & free-text input state
+  // Filter state including selectedField (দপ্তর ক্ষেত্র)
   const [selectedReach, setSelectedReach] = useState('');
   const [selectedJamaat, setSelectedJamaat] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
+  const [selectedField, setSelectedField] = useState('নেই');
 
   // Start with 1 empty member form by default
   const [newMembers, setNewMembers] = useState([createEmptyMember()]);
@@ -103,6 +164,19 @@ export default function AmelaViewAndEdit() {
 
   const deptOptions = getDeptOptions();
 
+  const getFieldOptions = () => {
+    if (!selectedReach || !selectedJamaat || !selectedDept) return ["নেই"];
+    const deptObj = data[selectedReach]?.[selectedJamaat]?.[selectedDept];
+    if (!deptObj) return ["নেই"];
+    
+    // Extract keys that act as fields vs dafters
+    const keys = Object.keys(deptObj);
+    const fields = keys.filter(k => !DAFTER_ORDER.includes(k));
+    return ["নেই", ...fields.filter(f => f !== "নেই")];
+  };
+
+  const fieldOptions = getFieldOptions();
+
   useEffect(() => {
     if (reachOptions.length > 0 && !selectedReach) {
       setSelectedReach(reachOptions[0]);
@@ -125,46 +199,35 @@ export default function AmelaViewAndEdit() {
     }
   }, [selectedJamaat]);
 
-  const DAFTER_ORDER = [
-    "সদর",
-    "তাজনীদ",
-    "এতেমাদ",
-    "তরবিয়ত",
-    "নও মোবাঈন",
-    "রিশতানাতা",
-    "তাবলীগ",
-    "তালীম",
-    "ওয়াকারে আমল",
-    "মাল",
-    "তাহরিকে জাদীদ",
-    "ওয়াকফে জাদীদ",
-    "সানাত এ তেজারাত",
-    "উমুরে তোলাবা",
-    "খেদমতে খালক",
-    "সেহতে জিসমানী",
-    "ইশায়াত",
-    "আতফাল",
-    "উমুমী",
-    "ওয়াকফে নও",
-    "মোহাসেব"
-  ];
+  useEffect(() => {
+    const opts = getFieldOptions();
+    if (opts.includes(selectedField)) {
+      // keep current if valid
+    } else {
+      setSelectedField(opts[0] || "নেই");
+    }
+  }, [selectedDept]);
 
   const titleRank = (title) => {
     if (title.includes("সহকারী")) return 3;
     if (title.includes("এডিশনাল")) return 2;
-    if (title.includes("নায়েব")) return 1;
+    if (title.includes("নায়েব")) return 1;
     return 0;
   };
 
   const getActiveMembers = () => {
     if (!selectedReach || !selectedJamaat || !selectedDept) return [];
 
-    const orgObj =
-      data[selectedReach]?.[selectedJamaat]?.[selectedDept];
+    const deptObj = data[selectedReach]?.[selectedJamaat]?.[selectedDept];
+    if (!deptObj) return [];
 
-    if (!orgObj) return [];
+    let targetContainer = deptObj;
+    if (selectedField && selectedField !== "নেই" && deptObj[selectedField]) {
+      targetContainer = deptObj[selectedField];
+    }
 
-    return Object.entries(orgObj)
+    return Object.entries(targetContainer)
+      .filter(([key]) => DAFTER_ORDER.includes(key) || !fieldOptions.includes(key))
       .sort(([a], [b]) => {
         const ia = DAFTER_ORDER.indexOf(a);
         const ib = DAFTER_ORDER.indexOf(b);
@@ -175,8 +238,9 @@ export default function AmelaViewAndEdit() {
 
         return ia - ib;
       })
-      .flatMap(([dafterName, members]) =>
-        Object.entries(members)
+      .flatMap(([dafterName, members]) => {
+        if (!members || typeof members !== 'object') return [];
+        return Object.entries(members)
           .sort(([titleA], [titleB]) => {
             const ra = titleRank(titleA);
             const rb = titleRank(titleB);
@@ -189,8 +253,8 @@ export default function AmelaViewAndEdit() {
             designation,
             dafter: dafterName,
             ...info,
-          }))
-      );
+          }));
+      });
   };
 
   const handleFieldChange = (designation, dafter, field, val) => {
@@ -203,15 +267,20 @@ export default function AmelaViewAndEdit() {
       updated[selectedReach][selectedJamaat][selectedDept] = {};
     }
 
-    const orgObj = updated[selectedReach][selectedJamaat][selectedDept];
-    const targetDafter = dafter || findDafterForTitle(data, designation) || 'সাধারণ';
-
-    if (!orgObj[targetDafter]) orgObj[targetDafter] = {};
-    if (!orgObj[targetDafter][designation]) {
-      orgObj[targetDafter][designation] = { name: '', phone: '', email: '', whatsapp: '' };
+    let targetContainer = updated[selectedReach][selectedJamaat][selectedDept];
+    if (selectedField && selectedField !== "নেই") {
+      if (!targetContainer[selectedField]) targetContainer[selectedField] = {};
+      targetContainer = targetContainer[selectedField];
     }
 
-    orgObj[targetDafter][designation][field] = val;
+    const targetDafter = dafter || findDafterForTitle(data, designation) || 'সাধারণ';
+
+    if (!targetContainer[targetDafter]) targetContainer[targetDafter] = {};
+    if (!targetContainer[targetDafter][designation]) {
+      targetContainer[targetDafter][designation] = { name: '', phone: '', email: '', whatsapp: '' };
+    }
+
+    targetContainer[targetDafter][designation][field] = val;
     setData(updated);
   };
 
@@ -219,16 +288,19 @@ export default function AmelaViewAndEdit() {
     if (!isEditable) return;
 
     const updated = clone(data);
+    let targetContainer = updated[selectedReach]?.[selectedJamaat]?.[selectedDept];
 
-    const orgObj =
-      updated[selectedReach]?.[selectedJamaat]?.[selectedDept];
+    if (!targetContainer) return;
+    if (selectedField && selectedField !== "নেই" && targetContainer[selectedField]) {
+      targetContainer = targetContainer[selectedField];
+    }
 
-    if (!orgObj?.[dafter]) return;
+    if (!targetContainer?.[dafter]) return;
 
-    delete orgObj[dafter][designation];
+    delete targetContainer[dafter][designation];
 
-    if (Object.keys(orgObj[dafter]).length === 0) {
-      delete orgObj[dafter];
+    if (Object.keys(targetContainer[dafter]).length === 0) {
+      delete targetContainer[dafter];
     }
 
     setData(updated);
@@ -252,11 +324,9 @@ export default function AmelaViewAndEdit() {
     setIsEditable((prev) => !prev);
   };
 
-  // Syncs any missing titles into titles.json with a unique incrementing integer ID
   const syncTitlesJson = async (updatedData) => {
     try {
       const titlesMap = await loadJsonDataFile('titles.json', {});
-
       const allTitles = extractAllTitles(updatedData);
 
       let maxId = -1;
@@ -301,10 +371,15 @@ export default function AmelaViewAndEdit() {
         updated[selectedReach][selectedJamaat][selectedDept] = {};
       }
 
-      const orgObj = updated[selectedReach][selectedJamaat][selectedDept];
-      if (!orgObj[dafterName]) orgObj[dafterName] = {};
+      let targetContainer = updated[selectedReach][selectedJamaat][selectedDept];
+      if (selectedField && selectedField !== "নেই") {
+        if (!targetContainer[selectedField]) targetContainer[selectedField] = {};
+        targetContainer = targetContainer[selectedField];
+      }
 
-      orgObj[dafterName][nm.title] = {
+      if (!targetContainer[dafterName]) targetContainer[dafterName] = {};
+
+      targetContainer[dafterName][nm.title] = {
         name: nm.name,
         email: nm.email,
         phone: nm.phone,
@@ -346,14 +421,14 @@ export default function AmelaViewAndEdit() {
 
   return (
     <form onSubmit={(e) => e.preventDefault()}>
-      <div className="gap-x-2 grid grid-cols-[1fr_1fr_2fr] w-full">
+      <div className="gap-x-2 grid grid-cols-4 w-full mb-4">
         <HybridInput
-          label="পর্যায়"
+          label="পর্যায়"
           name="reach"
-          title="পর্যায়"
+          title="পর্যায়"
           autoComplete="off"
-          placeholderInitial="পর্যায়"
-          defaultValue="স্থানীয়"
+          placeholderInitial="পর্যায়"
+          defaultValue="স্থানীয়"
           options={reachOptions}
           value={selectedReach}
           onChange={(e) => setSelectedReach(e.target.value)}
@@ -365,7 +440,7 @@ export default function AmelaViewAndEdit() {
           title="জামা'ত"
           autoComplete="off"
           placeholderInitial="জামা'ত"
-          defaultValue="নারায়ণগঞ্জ"
+          defaultValue="নারায়ণগঞ্জ"
           options={jamaatOptions}
           value={selectedJamaat}
           onChange={(e) => setSelectedJamaat(e.target.value)}
@@ -377,10 +452,22 @@ export default function AmelaViewAndEdit() {
           title='সংগঠন'
           autoComplete="off"
           placeholderInitial="সংগঠন"
-          defaultValue="মজলিস খোদ্দামুল আহমদীয়া"
+          defaultValue="মজলিস খোদ্দামুল আহমদীয়া"
           options={deptOptions}
           value={selectedDept}
           onChange={(e) => setSelectedDept(e.target.value)}
+          className="w-full font-bengali"
+        />
+        <HybridInput
+          label="দপ্তর ক্ষেত্র"
+          name="field"
+          title="দপ্তর ক্ষেত্র"
+          autoComplete="off"
+          placeholderInitial="দপ্তর ক্ষেত্র"
+          defaultValue="নেই"
+          options={fieldOptions}
+          value={selectedField}
+          onChange={(e) => setSelectedField(e.target.value)}
           className="w-full font-bengali"
         />
       </div>
@@ -417,7 +504,7 @@ export default function AmelaViewAndEdit() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 w-full">
+                <div className="flex flex-wrap gap-2 w-full mt-2">
                   {renderStandardInput(
                     `new-name-${nm.id}`,
                     "নাম",
@@ -475,25 +562,28 @@ export default function AmelaViewAndEdit() {
 
       {Object.keys(groupedMembers).length === 0 ? (
         <div className="py-4 font-bengali text-stone-500 text-center">
-          কোন সদস্য পাওয়া যায়নি।
+          কোন সদস্য পাওয়া যায়নি।
         </div>
       ) : (
         Object.entries(groupedMembers).map(([dafter, members]) => (
           <div key={dafter} className="mb-4">
+            <div className="font-bengali font-bold text-lg mb-2 text-stone-700 border-b pb-1">
+              {dafter}
+            </div>
             {members.map((m) => (
               <div
                 key={`${m.dafter}-${m.designation}`}
-                className=""
+                className="mb-3"
               >
                 <div className="flex justify-between items-center">
                   <div
-                    className="font-bengali font-bold text-md"
+                    className="font-bengali font-semibold text-md"
                     title={m.dafter}
                   >
                     {m.designation}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 w-full">
+                <div className="flex flex-wrap gap-2 w-full mt-1">
                   {renderStandardInput(
                     `name-${m.designation}`,
                     "নাম",
