@@ -266,6 +266,44 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
   }, [formValues["sender-reach"], formValues["sender-department"], formValues["sender-jamaat"]]);
 
   useEffect(() => {
+  const fetchLetterNumbers = async () => {
+    const org = formValues["sender-department"] || "";
+    const dept = formValues.department || currentDafter;
+    const jamaat = formValues["sender-jamaat"] || "";
+
+    if (!org || !dept) return;
+
+    const fy = calculateFiscalYear(formValues["date"], org);
+    const fyStr = `${fromBanglaDigits(fy.start)}-${fromBanglaDigits(fy.end)}`;
+
+    try {
+      // Get next sequential letter number for the specific dafter
+      const nextNo = await invoke("get_next_letter_no", { jamaat, org, dept, fyStr });
+      
+      // Get total organization-wide letter count across all dafters for this FY
+      const totalNo = await invoke("get_total_organization_letter_no", { jamaat, org, fyStr });
+
+      setFormValues((prev) => ({
+        ...prev,
+        "letter-no": toBanglaDigits(nextNo),
+        "totalLetterNo": toBanglaDigits(totalNo)
+      }));
+    } catch (err) {
+      console.error("Failed to retrieve letter numbers:", err);
+    }
+  };
+
+  fetchLetterNumbers();
+}, [
+  formValues["sender-department"],
+  formValues["sender-reach"],
+  formValues["sender-jamaat"],
+  formValues["date"],
+  formValues.department,
+  currentDafter
+]);
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
       const isEditableArea = e.target.isContentEditable || e.target.tagName === 'TEXTAREA';
       const shouldNavigate = isEditableArea
