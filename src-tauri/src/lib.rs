@@ -36,6 +36,45 @@ fn get_report_database_path() -> PathBuf {
     get_base_dir().join("database").join("রিপোর্ট")
 }
 
+#[tauri::command]
+fn get_total_organization_letter_no(jamaat: Option<String>, org: String, fy_str: String) -> String {
+    let mut total_count: u32 = 0;
+    let jamaat_name = jamaat
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "নারায়ণগঞ্জ".to_string());
+
+    // Path points to the parent "প্রেরিত" folder which contains all dafters for this org
+    let parent_folder = get_database_path()
+        .join(sanitize_filename(&jamaat_name))
+        .join(sanitize_filename(&org))
+        .join("পত্র")
+        .join("প্রেরিত");
+
+    // Recursively find all .letter files matching the given fiscal year folder name
+    fn count_letters_in_dir(dir: &Path, fy_str: &str, count: &mut u32) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    count_letters_in_dir(&path, fy_str, count);
+                } else if path.extension().and_then(|s| s.to_str()) == Some("letter") {
+                    // Check if the file resides inside the matching fiscal year folder
+                    if path.parent().and_then(|p| p.file_name()).and_then(|s| s.to_str()) == Some(fy_str) {
+                        *count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if parent_folder.exists() {
+        count_letters_in_dir(&parent_folder, &fy_str, &mut total_count);
+    }
+
+    // Return total count formatted with Bangla digits if needed, or plain number string
+    to_bangla_digits(&format!("{:02}", total_count)) // Assuming you have a helper or format it on frontend
+}
+
 fn get_report_filename(report: &Value) -> String {
     let report_type = sanitize_filename(
         report
