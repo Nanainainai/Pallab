@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
+import FlagSource from "../assets/flag.svg";
+import FlaggSource from "../assets/flagg.webp";
 import MinarSource from "../assets/minar.png";
 
 import {
@@ -174,10 +175,10 @@ const getKayedInfo = (
   type
 ) => {
   // Kayed information is intentionally limited to:
-  // স্থানীয় → মজলিস খোদ্দামুল আহমদীয়া → মাসিক
+  // স্থানীয় → মজলিস খোদ্দামুল আহমদীয়া → মাসিক
   if (
-    reach !== "স্থানীয়" ||
-    organization !== "মজলিস খোদ্দামুল আহমদীয়া" ||
+    reach !== "স্থানীয়" ||
+    organization !== "মজলিস খোদ্দামুল আহমদীয়া" ||
     type !== "মাসিক"
   ) {
     return {
@@ -189,7 +190,7 @@ const getKayedInfo = (
   return (
     amelaData?.[reach]?.[jamaat]?.[organization]?.[
     "এতেমাদ"
-    ]?.["কায়েদ"] || {
+    ]?.["কায়েদ"] || {
       name: "",
       phone: "",
     }
@@ -389,6 +390,11 @@ export default function ReportBoilerplate({
   const jamaat = formValues.jamaat || "";
   const type = formValues.type || "";
 
+  const Flag =
+    organization === "আহমদীয়া মুসলিম জামা'ত"
+      ? FlaggSource
+      : FlagSource;
+
   const selectedReport = useMemo(() => {
     if (reportDefinition) {
       return reportDefinition;
@@ -560,28 +566,25 @@ export default function ReportBoilerplate({
                     {isFirstPage && (
                       <>
                         {/*
-                         * Letter-style organization header.
-                         * No hardcoded organization, jamaat or contact
-                         * values are used here.
+                         * Letter-style organization header matching Boilerplate.
                          */}
                         <div className="w-full">
-                          <div
-                            className="bg-gray-200 forced-color-adjust-none pt-2 pb-2 w-full text-center"
-                          >
-                            <div className="font-ar text-4xl">
-                              9
-                            </div>
-
+                          <div className="bg-white forced-color-adjust-none pt-2 pb-2 w-full text-center">
+                            <div className="font-ar text-4xl">9</div>
                             <div className="flex flex-row justify-center items-center gap-3">
-                              <div className="font-bengali text-[38px] leading-none">
+                              <div className="flex justify-center items-center bg-gray-300 rounded-4xl outline-1 w-10 h-10 overflow-hidden">
+                                {Flag ? (
+                                  <img className="flag" src={Flag} alt="Flag" />
+                                ) : (
+                                  <span className="text-xs">পতাকা</span>
+                                )}
+                              </div>
+                              <div className="font-bengali text-[38px] leading-0">
                                 {organization}
-                                {jamaat
-                                  ? `, ${jamaat}`
-                                  : ""}
+                                {jamaat ? `, ${jamaat}` : ""}
                               </div>
                             </div>
-
-                            <div className="flex flex-row justify-center items-center pt-1 pb-2 font-bengali text-sm">
+                            <div className="flex flex-row justify-center items-center pt-1 pb-2 font-bengali text-md">
                               {[
                                 jamaatInfo.address,
                                 jamaatInfo.phone,
@@ -592,7 +595,10 @@ export default function ReportBoilerplate({
                             </div>
                           </div>
 
-                          <div className="bg-linear-to-r from-black via-white to-black w-full h-1" />
+                          {/* Solid Black Separator Line with Horizontal Padding */}
+                          <div className="px-12 w-full">
+                            <div className="bg-black w-full h-[1.5px]"></div>
+                          </div>
                         </div>
 
                         <div className="flex flex-col items-center mt-3">
@@ -642,7 +648,7 @@ export default function ReportBoilerplate({
 
                               <div className="px-2 py-1 border-black border-r border-b">
                                 <span>
-                                  কায়েদের নাম
+                                  কায়েদের নাম
                                 </span>
 
                                 <span className="ml-2 font-bold">
@@ -708,7 +714,7 @@ export default function ReportBoilerplate({
                           style={tableWidthStyle}
                         >
                           এই রিপোর্টের জন্য কোনো কাঠামো
-                          পাওয়া যায়নি।
+                          পাওয়া যায়নি।
                         </div>
                       ) : (
                         <div
