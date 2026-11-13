@@ -112,7 +112,7 @@ export default function Boilerplate({
             </div>
           </div>
 
-          {/* Solid Black Separator Line with Horizontal Padding */}
+          {/* Solid Black Separator Line with Horizontal Padding (Slightly wider than text block) */}
           <div className="px-12 w-full">
             <div className="bg-black w-full h-[1.5px]"></div>
           </div>
@@ -126,7 +126,8 @@ export default function Boilerplate({
           />
         )}
 
-        <div className="fixed mt-37 mr-12 ml-12 w-[95%] h-228 font-bengali text-black text-sm leading-relaxed">
+        {/* Text Container with slightly less width (mx-16) and unified text-base / text-justify */}
+        <div className="fixed mt-37 mr-16 ml-16 w-[calc(100%-8rem)] h-228 font-bengali text-black text-base leading-relaxed text-justify">
           <div className="flex flex-col justify-between h-full">
             <div className="h-full">
               {/* Reference Header / Date */}
@@ -169,7 +170,7 @@ export default function Boilerplate({
                     )}
                   </div>
 
-                  {/* Body Section - Increased font size to text-base */}
+                  {/* Body Section */}
                   <div className="mb-5 text-base leading-relaxed">
                     <div
                       dangerouslySetInnerHTML={{ __html: formValues.body }}
@@ -196,7 +197,7 @@ export default function Boilerplate({
                   </div>
                 </>
               ) : (
-                /* --- Attachment View Mode - Increased font size to text-base --- */
+                /* --- Attachment View Mode --- */
                 <div className="flex flex-col pt-3 mb-5 text-base leading-relaxed">
                   <div
                     dangerouslySetInnerHTML={{ __html: attachmentData.body }}
