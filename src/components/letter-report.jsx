@@ -123,17 +123,20 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
   useEffect(() => {
     let active = true;
     const resolveDafter = async () => {
-      if (formValues.department) {
-        if (active) setCurrentDafter(formValues.department);
-      } else {
-        const dafter = await getDafter(getSenderFilters());
-        if (active) setCurrentDafter(dafter || "");
+      // If the department wasn't explicitly overridden, update it automatically based on sender details change
+      const dafter = await getDafter(getSenderFilters());
+      if (active) {
+        const resolved = dafter || "";
+        setCurrentDafter(resolved);
+        setFormValues(prev => ({
+          ...prev,
+          department: prev.department || resolved
+        }));
       }
     };
     resolveDafter();
     return () => { active = false; };
   }, [
-    formValues.department,
     formValues["sender-reach"],
     formValues["sender-jamaat"],
     formValues["sender-department"],
@@ -153,16 +156,6 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
     });
   }, [formValues["date"], formValues["sender-department"]]);
 
-  /*
-   * `formValues` is owned by the parent and can be swapped out wholesale —
-   * e.g. letter-database's "edit" action replaces it with a different
-   * saved letter. `subjects`/`onulipi`/`history` are local state seeded
-   * from `formValues` only once (on mount), so without this they'd keep
-   * showing whatever was already open instead of the newly loaded record.
-   * `filepath`/`id` (injected by get_all_letters) uniquely identify a
-   * saved record, so a change there means "load this record fresh"
-   * rather than "the user edited a field."
-   */
   const editingId = formValues.filepath || formValues.id || null;
   const loadedIdRef = useRef(editingId);
   const skipNextDafterClearRef = useRef(true);
@@ -184,8 +177,6 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
     setHistory([formValues]);
     setIndex(0);
 
-    // The Dafter/template resolution that follows this load shouldn't
-    // second-guess the subjects we just loaded (see below).
     skipNextDafterClearRef.current = true;
   }, [editingId]);
 
@@ -432,6 +423,10 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
     const newOnulipi = [...onulipi];
     newOnulipi[index][field] = value;
     setOnulipi(newOnulipi);
+  };
+
+  const removeOnulipi = (index) => {
+    setOnulipi(onulipi.filter((_, i) => i !== index));
   };
 
   const availableSubjects = getFilteredSubjects(currentDafter);
@@ -693,7 +688,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
 
     const updateScale = () => {
       const containerWidth = containerRef.current.clientWidth;
-      const pageWidth = 210 * 3.7795; // 210mm at 96 CSS px/in ≈ 794px
+      const pageWidth = 210 * 3.7795;
 
       setScale(Math.min(1, containerWidth / pageWidth));
     };
@@ -730,11 +725,6 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
     dialogRef.current.close();
   };
 
-  /*
-   * Renders each element in `elements` onto its own PDF page — a letter's
-   * boilerplate page and every attachment page stay on separate pages
-   * instead of being flattened into one tall image and shrunk to fit.
-   */
   const elementsToPdfBase64 = (elements) => buildPdfFromElements(elements);
 
   const getLetterPages = (index) => {
@@ -757,12 +747,6 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
           : getRandomCosmetics(),
     }));
 
-    /*
-     * `department`, `boilerplate`, `letterType`, and `subject` are stray
-     * top-level scalars that don't belong in the saved document: `department`
-     * duplicates the Dafter value (now saved once, as `dafter`), and the rest
-     * are per-subject fields that only make sense inside `subjects[i]`.
-     */
     const {
       department: _department,
       boilerplate: _boilerplate,
@@ -778,28 +762,14 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
     const baseFormValues = {
       ...restFormValues,
       onulipi: structuredClone(onulipi),
-      /*
-       * The Dafter field is edited as `formValues.department` (see the
-       * HybridInput below), but saved under a single `dafter` key.
-       */
       dafter:
         formValues.department ??
         currentDafter ??
         "",
-      /*
-       * `sender-department` remains the actual organization.
-       */
       "sender-department":
         formValues["sender-department"] ?? "",
     };
 
-    /*
-     * Each subject added via the "+" button in the info tab is a distinct
-     * letter (its own letter-no, fiscal year, and date), so it's saved as
-     * its own `.letter` file rather than bundled together in one document.
-     * Subject index 0 falls back to the shared top-level fields; later
-     * subjects carry their own overrides entered in the UI.
-     */
     const savedPaths = [];
     for (const subject of formattedSubjects) {
       const savedFormValues = {
@@ -1165,8 +1135,8 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
       </div>
       <div className='separator'>অনুলিপি</div>
       {onulipi.map((entry, index) => (
-        <div key={index} className="">
-          <div className='gap-x-2 grid grid-cols-[0.2fr_1fr]'>
+        <div key={index} className="mb-3">
+          <div className='gap-x-2 grid grid-cols-[0.2fr_1fr_auto] items-center'>
             <HybridInput
               name={`onulipi-reach-${index}`}
               data-default="কেন্দ্রীয়"
@@ -1186,8 +1156,17 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
               readOnly={index === 0}
               onChange={(e) => updateOnulipi(index, 'holder', e.target.value)}
             />
+            {onulipi.length > 1 && (
+              <button
+                type="button"
+                title="অনুলিপি মুছুন"
+                onClick={() => removeOnulipi(index)}
+              >
+                <Trash2 className="text-red-500" />
+              </button>
+            )}
           </div>
-          <div className='gap-x-2 grid grid-cols-2'>
+          <div className='gap-x-2 grid grid-cols-2 mt-1'>
             <HybridInput
               name={`onulipi-dept-${index}`}
               data-default="মজলিস খোদ্দামুল আহমদীয়া"
@@ -1215,7 +1194,7 @@ export default function Letter({ formValues, setFormValues, handleInput }) {
             />
           </div>
           {index === onulipi.length - 1 && (
-            <button type="button" title="নতুন অনুলিপি যোগ করুন" onClick={() => setOnulipi([...onulipi, { holder: "", department: "", jamaat: "", reach: "" }])} className="w-full"><Plus /></button>
+            <button type="button" title="নতুন অনুলিপি যোগ করুন" onClick={() => setOnulipi([...onulipi, { holder: "", department: "", jamaat: "", reach: "" }])} className="mt-2 w-full"><Plus /></button>
           )}
         </div>
       ))}
